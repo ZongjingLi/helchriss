@@ -14,7 +14,7 @@ from .symbolic import Expression, FunctionApplicationExpression, ConstantExpress
 from abc import abstractmethod
 
 from helchriss.logger import get_logger
-from helchriss.dsl.dsl_types import FuncType
+from helchriss.dsl.dsl_types import FunctionType
 from helchriss.dsl.dsl_values import Value, ProbValue
 
 from helchriss.dsl.dsl_types import TypeBase, ListType, TupleType
@@ -24,7 +24,7 @@ class FunctionExecutor(nn.Module):
     def __init__(self, domain : 'Domain' = None, concept_dim = 128):
         super().__init__()
         if domain is None:
-            logger.warning("The input domain is empty, creating an empty domain")
+            logger.warning(f"`{self._get_name()}` The input domain is empty, creating an empty domain")
 
         
         self._domain : 'Domain' = domain
@@ -37,19 +37,35 @@ class FunctionExecutor(nn.Module):
         self.function_input_types = {}
 
         if domain is not None:
+            for fn_name, function in domain.functions.items():
+                ### the instance of the fn_name and the dependent function
+                self.function_output_type[fn_name] = function.return_type
+                self.function_input_types[fn_name] = [arg[1] for arg in function.typed_args]
+                if hasattr(self, fn_name):
+                    self.register_function(fn_name, self.unwrap_values(getattr(self, fn_name)))
+                    logger.info('Function {} automatically registered.'.format(fn_name))
+        """
+        if domain is not None:
             for function_name, function in domain.functions.items():
+                self.function_output_type[function_name] = self.make_type(function["type"])
+                self.function_input_types[function_name] = [self.make_type(arg.split("-")[-1]) for arg in function["parameters"]]
 
                 if hasattr(self, function_name):
                     self.register_function(function_name, self.unwrap_values(getattr(self, function_name)))
                     logger.info('Function {} automatically registered.'.format(function_name))
-
-
-                self.function_output_type[function_name] = function["type"]
-                self.function_input_types[function_name] = [arg.split("-")[-1] for arg in function["parameters"]]
+        """
 
 
         self._grounding = None
     
+    @property
+    def reserved(self) -> List[str]: return ["int", "boolean",  "float"]
+
+    def make_type(self, alias) -> TypeBase:
+        if alias in self.reserved: typename = alias
+        else: typename = self.domain.types[alias]
+        return TypeBase(typename, alias)
+ 
     @property
     def domain(self) -> 'Domain' : return self._domain
 
@@ -81,6 +97,8 @@ class FunctionExecutor(nn.Module):
             return self._function_registry[name]
         raise KeyError(f'No implementation for function {name}.')
 
+    def init_domain_functions(self, domain):
+        return 
 
     @property
     def grounding(self): return self._grounding # the grounding stored in the current execution
@@ -179,9 +197,11 @@ class FunctionExecutor(nn.Module):
 
             #print(self.domain.functions[func_or_ftype.__name__])
             #ftype = self.domain.functions[func_or_ftype.__name__].ftype
-            func_dict = self.domain.functions[func_or_ftype.__name__]
+            #func_dict = self.domain.functions[func_or_ftype.__name__]
+            fn_name = func_or_ftype.__name__
 
-            ftype = FuncType(func_dict["parameters"], func_dict["type"])
+            ftype = self.domain.functions[fn_name]
+            #ftype = FunctionType(self.function_input_types[name], self.function_output_type[name])
 
         def wrapper(func):
             @functools.wraps(func)
@@ -189,6 +209,7 @@ class FunctionExecutor(nn.Module):
                 args = [arg.value if isinstance(arg, Value) else arg for arg in args]
                 kwargs = {k: v.value if isinstance(v, Value) else v for k, v in kwargs.items()}
                 rv = func(*args, **kwargs)
+                from helchriss.utils import stprint
 
                 if isinstance(ftype.return_type, tuple):
                     return tuple(
