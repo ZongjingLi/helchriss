@@ -81,8 +81,6 @@ class FunctionExecutor(nn.Module):
             return self._function_registry[name]
         raise KeyError(f'No implementation for function {name}.')
 
-    def init_domain_functions(self, domain):
-        return 
 
     @property
     def grounding(self): return self._grounding # the grounding stored in the current execution
@@ -182,7 +180,7 @@ class FunctionExecutor(nn.Module):
             #print(self.domain.functions[func_or_ftype.__name__])
             #ftype = self.domain.functions[func_or_ftype.__name__].ftype
             func_dict = self.domain.functions[func_or_ftype.__name__]
-            #print(func_dict)
+
             ftype = FuncType(func_dict["parameters"], func_dict["type"])
 
         def wrapper(func):

@@ -6,7 +6,8 @@ from termcolor import colored
 from helchriss.utils import stprint_str
 from .dsl_types import ListType, ObjectType
 import torch
-
+#199,-34.26, 1749
+# nether : 23.13, 46, 227
 class ProbValue(object):
     def __init__(self, vtype, value, prob = 1.0):
         self.vtype = vtype
